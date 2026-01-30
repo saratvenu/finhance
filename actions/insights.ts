@@ -67,12 +67,11 @@ export async function getUserInsights(
       buildInsightContext(metrics)
     );
 
-    console.log("🧠 AI insights raw:", aiInsights);
+    console.log("AI insights raw:", aiInsights);
   } catch (err) {
-    console.error("❌ AI insight generation failed:", err);
+    console.error("AI insight generation failed:", err);
   }
 
-  // 🔑 UNWRAP { insights: [...] } SHAPE
   const extractedInsights =
     typeof aiInsights === "object" &&
     aiInsights !== null &&

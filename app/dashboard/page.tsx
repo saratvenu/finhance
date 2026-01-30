@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 import { Plus } from "lucide-react";
 
+// Actions
 import { getUserAccounts } from "@/actions/dashboard";
 import { getCurrentBudget } from "@/actions/budget";
 import {
@@ -10,11 +11,13 @@ import {
 } from "@/actions/transaction";
 import { getUserInsights } from "@/actions/insights";
 
+// Components
 import { AccountCard } from "@/components/account-card";
 import CreateAccountDrawer from "@/components/create-account-drawer";
 import { BudgetProgress } from "@/components/budget-progress";
 import { DashboardOverview } from "@/components/dashboard-chart";
 
+// Local components
 import PredictNetWorthCard from "./_components/predict-networth-card";
 import { InsightsCard } from "./_components/insights-card";
 import SpendingScoreCard from "./_components/spending-score";
@@ -25,6 +28,8 @@ import { Card, CardBody } from "@heroui/card";
 // Types
 import type { AccountDTO } from "@/actions/dashboard";
 import type { TransactionDTO } from "@/types/transaction";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const user = await currentUser();
@@ -128,26 +133,7 @@ export default async function DashboardPage() {
         {accounts.map((account: AccountDTO) => (
           <AccountCard key={account.id} account={account} />
         ))}
-
-        {budgetData && defaultAccount && (
-          <div className="md:col-span-2 lg:col-span-3">
-            <BudgetProgress
-              accountName={defaultAccount.name}
-              initialBudget={budgetData.budget}
-              currentExpenses={budgetData.currentExpenses}
-              monthlyAverages={monthlyAverages}
-            />
-          </div>
-        )}
       </div>
-
-      {defaultAccount && (
-        <DashboardOverview
-          accounts={accounts}
-          transactions={transactions}
-          defaultAccountId={defaultAccount.id}
-        />
-      )}
 
       {/* SPENDING SCORE */}
       {defaultAccount?.id && (
@@ -157,15 +143,34 @@ export default async function DashboardPage() {
         />
       )}
 
-      {/* NET WORTH PREDICTION */}
+      {/* DASHBOARD OVERVIEW */}
+      {defaultAccount && (
+        <DashboardOverview
+          accounts={accounts}
+          transactions={transactions}
+          defaultAccountId={defaultAccount.id}
+        />
+      )}
+
+      {/* BUDGET */}
+      {budgetData && defaultAccount && (
+        <BudgetProgress
+          accountName={defaultAccount.name}
+          initialBudget={budgetData.budget}
+          currentExpenses={budgetData.currentExpenses}
+          monthlyAverages={monthlyAverages}
+        />
+      )}
+
+      {/* INSIGHTS */}
+      <InsightsCard insights={insights} />
+
+      {/* NET WORTH PREDICTOR */}
       <PredictNetWorthCard
         currentNetWorth={currentNetWorth}
         avgMonthlyIncome={avgMonthlyIncome}
         avgMonthlyExpense={avgMonthlyExpense}
       />
-
-      {/* INSIGHTS */}
-      <InsightsCard insights={insights} />
     </div>
   );
 }
