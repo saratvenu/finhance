@@ -208,8 +208,8 @@ export function AccountChart({ transactions }: Props) {
                   tickFormatter={(value: number) => `₹${value}`}
                 />
                 <Tooltip
-                  formatter={(value: number) => [
-                    `₹${value.toFixed(2)}`,
+                  formatter={(value) => [
+                    `₹${Number(value ?? 0).toFixed(2)}`,
                     "",
                   ]}
                 />
