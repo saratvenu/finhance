@@ -108,7 +108,7 @@
     "eslint-plugin-react-hooks": "5.2.0",
     "eslint-plugin-unused-imports": "4.1.4",
     "globals": "16.0.0",
-    "inngest": "^3.48.1",
+    "inngest": "^3.22.0",
     "inngest-cli": "^1.16.1",
     "postcss": "8.5.6",
     "prettier": "3.5.3",
@@ -117,6 +117,5 @@
     "tailwindcss": "4.1.11",
     "tsx": "^4.21.0",
     "typescript": "^5.9.0"
-
   }
 }
