@@ -56,29 +56,59 @@ export async function getUserInsights(
   const metrics = calculateMetrics(transactions);
   const comparison = getSavingsComparison(metrics.savingsRate);
 
-  // Try AI first
+  /* ------------------------------------------------------------------ */
+  /*  AI INSIGHTS                                                      */
+  /* ------------------------------------------------------------------ */
+
+  let aiInsights: unknown = null;
+
   try {
-    const aiInsights = await generateInsights(
+    aiInsights = await generateInsights(
       buildInsightContext(metrics)
     );
 
-    if (Array.isArray(aiInsights) && aiInsights.length > 0) {
-      return aiInsights.map((i) => ({
-        ...i,
-        severity: comparison.severity,
-      }));
-    }
-  } catch {
+    console.log("🧠 AI insights raw:", aiInsights);
+  } catch (err) {
+    console.error("❌ AI insight generation failed:", err);
   }
+
+  // 🔑 UNWRAP { insights: [...] } SHAPE
+  const extractedInsights =
+    typeof aiInsights === "object" &&
+    aiInsights !== null &&
+    "insights" in aiInsights &&
+    Array.isArray((aiInsights as any).insights)
+      ? (aiInsights as any).insights
+      : null;
+
+  if (
+    extractedInsights &&
+    extractedInsights.every(
+      (i: any) =>
+        typeof i.title === "string" &&
+        typeof i.message === "string"
+    )
+  ) {
+    return extractedInsights.map((i: any) => ({
+      title: i.title,
+      message: i.message,
+      recommendation: i.recommendation,
+      severity: comparison.severity,
+    }));
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* FALLBACK INSIGHTS                                                */
+  /* ------------------------------------------------------------------ */
 
   return [
     {
-      title: "Spending vs Income Snapshot",
+      title: "Income vs Expense Snapshot",
       severity: comparison.severity,
       message: `
 You save ${(metrics.savingsRate * 100).toFixed(0)}% of your income,
 which is better than approximately ${comparison.percentile}% of users nationwide.
-`.trim(),
+      `.trim(),
       recommendation:
         metrics.savingsRate >= NATIONAL_AVERAGE_SAVINGS_RATE
           ? "Consider investing part of your surplus or building an emergency fund."
