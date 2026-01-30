@@ -1,0 +1,84 @@
+# =====================
+# Dependencies
+# =====================
+node_modules
+.pnp
+.pnp.js
+
+# =====================
+# Next.js
+# =====================
+.next
+out
+build
+
+# =====================
+# Environment variables (CRITICAL)
+# =====================
+.env
+.env.*
+!.env.example
+
+# =====================
+# Python
+# =====================
+.venv
+
+# =====================
+# Prisma
+# =====================
+prisma/*.db
+prisma/*.db-journal
+/app/generated/prisma
+
+# =====================
+# Logs
+# =====================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =====================
+# Editor / OS
+# =====================
+.vscode
+.DS_Store
+Thumbs.db
+
+# =====================
+# Vercel
+# =====================
+.vercel
+
+# =====================
+# TypeScript
+# =====================
+*.tsbuildinfo
+next-env.d.ts
+
+# =====================
+# Lock files (choose ONE package manager)
+# =====================
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
+# (package-lock.json is OK to keep if you use npm)
+# =====================
+# Python / ML artifacts
+# =====================
+__pycache__/
+*.pyc
+
+# ML models & outputs
+*.pkl
+*.joblib
+*.onnx
+*.h5
+
+# Local ML data / tests
+budget-ml/data/
+budget-ml/test/
+budget-ml/**/*.csv
+budget-ml/**/*.txt
+# ML model outputs
+budget-ml/*.json
