@@ -8,7 +8,7 @@ import {
   checkBudgetAlerts,
 } from "@/lib/inngest/functions";
 
-export const { GET, POST, PUT } = serve({
+const handlers = serve({
   client: inngest,
   functions: [
     processRecurringTransaction,
@@ -17,3 +17,8 @@ export const { GET, POST, PUT } = serve({
     checkBudgetAlerts,
   ],
 });
+
+// Type assertions to fix Next.js 16 compatibility
+export const GET = handlers.GET as any;
+export const POST = handlers.POST as any;
+export const PUT = handlers.PUT as any;
