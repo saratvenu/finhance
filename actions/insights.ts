@@ -12,7 +12,7 @@ export type Insight = {
   severity: "positive" | "warning" | "danger";
 };
 
-const NATIONAL_AVERAGE_SAVINGS_RATE = 0.2;
+const NATIONAL_AVERAGE_SAVINGS_RATE = 0.3;
 
 function getSavingsComparison(savingsRate: number) {
   if (savingsRate >= 0.3)

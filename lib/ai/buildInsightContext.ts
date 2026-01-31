@@ -10,7 +10,7 @@ export function buildInsightContext(metrics: FinanceMetrics) {
       spendingRate: metrics.spendingRate,
     },
     nationalAverage: {
-      savingsRate: 0.2,
+      savingsRate: 0.3,
       spendingRate: 0.7,
     },
     rules: [
