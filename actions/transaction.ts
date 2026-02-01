@@ -5,6 +5,7 @@ import { db } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { scanReceiptWithOCRSpace } from "@/lib/ocr/scan-receipt";
+
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
 /* -------------------------------------------------------------------------- */
@@ -64,12 +65,8 @@ export async function createTransaction(data: CreateTransactionInput) {
   });
   if (!account) throw new Error("Account not found");
 
-  const balanceChange =
-    data.type === "EXPENSE" ? -data.amount : data.amount;
-
-  const newBalance = account.balance.toNumber() + balanceChange;
-
   const transaction = await db.$transaction(async (tx) => {
+    // Create transaction
     const created = await tx.transaction.create({
       data: {
         ...data,
@@ -84,9 +81,15 @@ export async function createTransaction(data: CreateTransactionInput) {
       },
     });
 
+    // Atomically update account balance
     await tx.account.update({
       where: { id: account.id },
-      data: { balance: newBalance },
+      data: {
+        balance:
+          data.type === "INCOME"
+            ? { increment: data.amount }
+            : { decrement: data.amount },
+      },
     });
 
     return created;
@@ -144,27 +147,23 @@ export async function updateTransaction(
       id,
       userId: user.id,
     },
-    include: { account: true },
   });
 
   if (!original) throw new Error("Transaction not found");
 
-  const oldBalanceChange =
+  const oldChange =
     original.type === "EXPENSE"
       ? -original.amount.toNumber()
       : original.amount.toNumber();
 
-  const newBalanceChange =
+  const newChange =
     data.type === "EXPENSE" ? -data.amount : data.amount;
 
-  const netBalanceChange = newBalanceChange - oldBalanceChange;
+  const netChange = newChange - oldChange;
 
   await db.$transaction(async (tx) => {
-    await tx.transaction.updateMany({
-      where: {
-        id,
-        userId: user.id,
-      },
+    await tx.transaction.update({
+      where: { id },
       data: {
         ...data,
         nextRecurringDate:
@@ -180,13 +179,13 @@ export async function updateTransaction(
     await tx.account.update({
       where: { id: original.accountId },
       data: {
-        balance: { increment: netBalanceChange },
+        balance: { increment: netChange },
       },
     });
   });
 
   revalidatePath("/dashboard");
-  revalidatePath(`/account/${data.accountId}`);
+  revalidatePath(`/account/${original.accountId}`);
 
   const updated = await db.transaction.findFirst({
     where: { id, userId: user.id },
@@ -215,7 +214,6 @@ export async function getUserTransactions(
       userId: user.id,
       ...query,
     },
-    include: { account: true },
     orderBy: { date: "desc" },
   });
 
@@ -232,17 +230,9 @@ export async function scanReceipt(file: File) {
     return { success: true, data: result };
   } catch (error) {
     console.error("Error scanning receipt:", error);
-    
-    if (error instanceof Error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-    
     return {
       success: false,
-      error: "Failed to scan receipt. Please try again."
+      error: "Failed to scan receipt. Please try again.",
     };
   }
 }
@@ -312,10 +302,9 @@ export async function getMonthlyExpenseAverages(
 
   for (const tx of transactions) {
     const key = `${tx.date.getFullYear()}-${tx.date.getMonth()}`;
-    const amount = tx.amount.toNumber();
     monthlyTotals.set(
       key,
-      (monthlyTotals.get(key) ?? 0) + amount
+      (monthlyTotals.get(key) ?? 0) + tx.amount.toNumber()
     );
   }
 

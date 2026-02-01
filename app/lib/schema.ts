@@ -6,12 +6,12 @@ export const accountSchema = z.object({
   type: z.enum(["CURRENT", "SAVINGS"]),
   balance: z
     .string()
-    .min(1, "Initial balance is required")
     .regex(/^\d+(\.\d{1,2})?$/, "Balance must be a valid number"),
   isDefault: z.boolean(),
 });
 
 export type AccountFormData = z.infer<typeof accountSchema>;
+
 
 // Transaction Schema
 export const transactionSchema = z

@@ -4,42 +4,20 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { Decimal } from "@prisma/client/runtime/library";
 import { z } from "zod";
-import { AccountSchema } from "@/app/schemas/account-schema";
+import { accountSchema } from "@/app/lib/schema";
 import { serializeTransaction } from "@/lib/serializers/transaction";
-
-// --------------------------------------------------------
-// Utility
-// --------------------------------------------------------
-type AnyObject = { [key: string]: any };
-
-function serializeDecimal(obj: AnyObject) {
-  const newObj: AnyObject = {};
-  for (const key in obj) {
-    const value = obj[key];
-    if (value instanceof Decimal) {
-      newObj[key] = value.toNumber();
-    } else if (Array.isArray(value)) {
-      newObj[key] = value.map((v) => serializeDecimal(v));
-    } else if (value !== null && typeof value === "object") {
-      newObj[key] = serializeDecimal(value);
-    } else {
-      newObj[key] = value;
-    }
-  }
-  return newObj;
-}
+import { revalidatePath } from "next/cache";
 
 // --------------------------------------------------------
 // CREATE ACCOUNT
 // --------------------------------------------------------
 export async function createAccount(input: unknown) {
   try {
-    const validatedData = AccountSchema.parse(input);
-    const { name, type, balance, isDefault } = validatedData;
+    const { name, type, balance, isDefault } = accountSchema.parse(input);
 
     const { userId } = await auth();
     if (!userId) {
-      return { success: false, message: "Unauthorized: No user session found." };
+      return { success: false, message: "Unauthorized" };
     }
 
     const user = await db.user.findUnique({
@@ -47,20 +25,41 @@ export async function createAccount(input: unknown) {
     });
 
     if (!user) {
-      return { success: false, message: "User not found in the database." };
+      return { success: false, message: "User not found" };
+    }
+
+    if (isDefault) {
+      await db.account.updateMany({
+        where: { userId: user.id },
+        data: { isDefault: false },
+      });
     }
 
     const account = await db.account.create({
       data: {
         name,
         type,
-        balance: new Decimal(parseFloat(balance)),
+        balance: new Decimal(balance),
         isDefault,
         userId: user.id,
       },
     });
 
-    return { success: true, account };
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      account: {
+        id: account.id,
+        name: account.name,
+        type: account.type,
+        balance: account.balance.toFixed(2),
+        isDefault: account.isDefault,
+        userId: account.userId,
+        createdAt: account.createdAt.toISOString(),
+        updatedAt: account.updatedAt.toISOString(),
+      },
+    };
   } catch (error) {
     console.error("Account creation error:", error);
 
@@ -71,7 +70,7 @@ export async function createAccount(input: unknown) {
       };
     }
 
-    return { success: false, message: "An unexpected error occurred." };
+    return { success: false, message: "Unexpected error" };
   }
 }
 
@@ -82,7 +81,7 @@ export async function updateDefaultAccount(accountId: string) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return { success: false, message: "Unauthorized: No user session found." };
+      return { success: false, message: "Unauthorized" };
     }
 
     const user = await db.user.findUnique({
@@ -91,19 +90,16 @@ export async function updateDefaultAccount(accountId: string) {
     });
 
     if (!user) {
-      return { success: false, message: "User not found." };
+      return { success: false, message: "User not found" };
     }
 
-    const targetAccount = user.accounts.find((acc) => acc.id === accountId);
-    if (!targetAccount) {
-      return { success: false, message: "Account not found." };
+    const target = user.accounts.find((a) => a.id === accountId);
+    if (!target) {
+      return { success: false, message: "Account not found" };
     }
 
     await db.account.updateMany({
-      where: {
-        userId: user.id,
-        NOT: { id: accountId },
-      },
+      where: { userId: user.id },
       data: { isDefault: false },
     });
 
@@ -112,10 +108,12 @@ export async function updateDefaultAccount(accountId: string) {
       data: { isDefault: true },
     });
 
+    revalidatePath("/dashboard");
+
     return { success: true };
   } catch (error) {
-    console.error("Failed to update default account:", error);
-    return { success: false, message: "Internal server error." };
+    console.error("Update default account error:", error);
+    return { success: false, message: "Internal server error" };
   }
 }
 
@@ -123,22 +121,21 @@ export async function updateDefaultAccount(accountId: string) {
 // GET ACCOUNT WITH TRANSACTIONS
 // --------------------------------------------------------
 export async function getAccountWithTransactions(accountId?: string | null) {
-  // 1) Validate input
   if (!accountId) return null;
 
-  // 2) Auth
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  // 3) Resolve user
   const user = await db.user.findUnique({
     where: { clerkUserId: userId },
   });
   if (!user) throw new Error("User not found");
 
-  // 4) Fetch account + transactions
   const account = await db.account.findFirst({
-    where: { id: accountId, userId: user.id },
+    where: {
+      id: accountId,
+      userId: user.id,
+    },
     include: {
       transactions: {
         orderBy: { date: "desc" },
@@ -151,25 +148,16 @@ export async function getAccountWithTransactions(accountId?: string | null) {
 
   if (!account) return null;
 
-  // --------------------------------------------------------
-  // DERIVE BALANCE FROM TRANSACTIONS
-  // --------------------------------------------------------
-  const derivedBalance = account.transactions.reduce((sum, tx) => {
-    const amount = Number(tx.amount);
-    return tx.type === "INCOME"
-      ? sum + amount
-      : sum - amount;
-  }, 0);
-
-  // EXPLICIT SERVER TO CLIENT DTO
   return {
     id: account.id,
     name: account.name,
     type: account.type,
-    balance: derivedBalance.toFixed(2),
+    balance: account.balance.toFixed(2),
     isDefault: account.isDefault,
     userId: account.userId,
-    _count: account._count,
+    _count: {
+      transactions: account._count.transactions,
+    },
     transactions: account.transactions.map(serializeTransaction),
   };
 }

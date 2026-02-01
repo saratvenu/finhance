@@ -8,7 +8,7 @@ import {
 } from "@/lib/import/categorize";
 
 /* ------------------------------------------------------------ */
-/* Types (input from client / preview step)                     */
+/* Types                                                        */
 /* ------------------------------------------------------------ */
 
 type IncomingTransaction = {
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     }
 
     /* ------------------------------------------------------------ */
-    /* Auto-categorization (OpenAI-backed)                          */
+    /* Auto-categorization                                          */
     /* ------------------------------------------------------------ */
 
     const categorizationInput: CategorizeInput[] =
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
             : t.date.toISOString().slice(0, 10),
         description: t.description ?? "",
         amount: t.amount,
-        type: t.type, // already INCOME | EXPENSE
+        type: t.type,
         category: t.category,
       }));
 
@@ -110,23 +110,42 @@ export async function POST(req: Request) {
     );
 
     /* ------------------------------------------------------------ */
-    /* Persist                                                      */
+    /* Compute net balance change                                   */
     /* ------------------------------------------------------------ */
 
-    await db.transaction.createMany({
-      data: categorized.map((t) => ({
-        date: new Date(t.date),
-        description: t.description,
-        amount: t.amount,
-        type:
-          t.type === "INCOME"
-            ? TransactionType.INCOME
-            : TransactionType.EXPENSE,
+    let netBalanceChange = 0;
 
-        category: t.category ?? "Other",
-        userId: account.userId,
-        accountId,
-      })),
+    for (const t of categorized) {
+      netBalanceChange +=
+        t.type === "INCOME" ? t.amount : -t.amount;
+    }
+
+    /* ------------------------------------------------------------ */
+    /* Persist (ATOMIC)                                             */
+    /* ------------------------------------------------------------ */
+
+    await db.$transaction(async (tx) => {
+      await tx.transaction.createMany({
+        data: categorized.map((t) => ({
+          date: new Date(t.date),
+          description: t.description,
+          amount: t.amount,
+          type:
+            t.type === "INCOME"
+              ? TransactionType.INCOME
+              : TransactionType.EXPENSE,
+          category: t.category ?? "Other",
+          userId: account.userId,
+          accountId,
+        })),
+      });
+
+      await tx.account.update({
+        where: { id: accountId },
+        data: {
+          balance: { increment: netBalanceChange },
+        },
+      });
     });
 
     return NextResponse.json({

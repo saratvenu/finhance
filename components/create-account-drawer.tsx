@@ -3,6 +3,7 @@
 import { useState, ReactNode } from "react";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import {
   Drawer,
   DrawerBody,
@@ -25,6 +26,7 @@ interface CreateAccountDrawerProps {
 
 export default function CreateAccountDrawer({ children }: CreateAccountDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
 
   const {
     register,
@@ -49,6 +51,7 @@ export default function CreateAccountDrawer({ children }: CreateAccountDrawerPro
       toast.success("Account created successfully!");
       setIsOpen(false);
       reset();
+      router.refresh();
     } else {
       toast.error(result.message || "Failed to create account");
     }
@@ -110,14 +113,21 @@ export default function CreateAccountDrawer({ children }: CreateAccountDrawerPro
                 )}
               />
 
-              <Input
-                label="Balance"
-                type="text"
-                placeholder="Enter initial balance"
-                {...register("balance")}
-                isInvalid={!!errors.balance}
-                errorMessage={errors.balance?.message}
-              />
+              <div className="flex flex-col gap-1">
+                <Input
+                  label="Initial Balance"
+                  type="text"
+                  placeholder="Enter initial balance"
+                  {...register("balance")}
+                  isInvalid={!!errors.balance}
+                  errorMessage={errors.balance?.message}
+                />
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-1">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    💡Enter the initial account balance.
+                  </p>
+                </div>
+              </div>
 
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm text-gray-900 dark:text-white">
