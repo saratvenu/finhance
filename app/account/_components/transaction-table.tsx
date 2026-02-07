@@ -24,6 +24,7 @@ import { MoreVertical, Search } from "lucide-react";
 import { format } from "date-fns";
 import type { Transaction, TransactionType } from "@prisma/client";
 import ConfirmDelete from "@/ui/confirmdelete";
+import { deleteTransaction } from "@/actions/transaction";
 
 /* ---------- DTO ---------- */
 export interface TransactionDTO
@@ -81,22 +82,20 @@ export function TransactionTable({ transactions }: Props) {
     router.push(`/transaction/create?edit=${id}`);
   };
 
+  // DELETE
   const handleConfirmDelete = async () => {
     if (!deleteId) return;
 
     try {
       setIsDeleting(true);
 
-      const res = await fetch(`/api/transactions/${deleteId}`, {
-        method: "DELETE",
-      });
+      await deleteTransaction(deleteId);
 
-      if (res.ok) {
-        router.refresh();
-        setDeleteId(null);
-      } else {
-        alert("Failed to delete transaction");
-      }
+      router.refresh(); // refresh UI
+      setDeleteId(null);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete transaction");
     } finally {
       setIsDeleting(false);
     }

@@ -310,3 +310,47 @@ export async function getMonthlyExpenseAverages(
 
   return Array.from(monthlyTotals.values());
 }
+
+/* -------------------------------------------------------------------------- */
+/*                              Delete Transaction                              */
+/* -------------------------------------------------------------------------- */
+
+export async function deleteTransaction(id: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
+  });
+  if (!user) throw new Error("User not found");
+
+  const transaction = await db.transaction.findFirst({
+    where: {
+      id,
+      userId: user.id,
+    },
+  });
+
+  if (!transaction) throw new Error("Transaction not found");
+
+  await db.$transaction(async (tx) => {
+    await tx.account.update({
+      where: { id: transaction.accountId },
+      data: {
+        balance:
+          transaction.type === "INCOME"
+            ? { decrement: transaction.amount }
+            : { increment: transaction.amount },
+      },
+    });
+
+    await tx.transaction.delete({
+      where: { id },
+    });
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/account/${transaction.accountId}`);
+
+  return { success: true };
+}
