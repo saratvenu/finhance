@@ -66,22 +66,39 @@ export async function createTransaction(data: CreateTransactionInput) {
   if (!account) throw new Error("Account not found");
 
   const transaction = await db.$transaction(async (tx) => {
-    // Create transaction
+
     const created = await tx.transaction.create({
       data: {
-        ...data,
-        userId: user.id,
+        accountId: data.accountId,
+
+        type: data.type,
+
+        amount: data.amount,
+
+        description: data.description ?? null,
+
+        category: data.category,
+
+        date: new Date(data.date),
+
+        isRecurring: data.isRecurring ?? false,
+
+        recurringInterval: data.recurringInterval ?? null,
+
         nextRecurringDate:
           data.isRecurring && data.recurringInterval
             ? calculateNextRecurringDate(
-                data.date,
+                new Date(data.date),
                 data.recurringInterval
               )
             : null,
+
+        lastProcessed: null,
+
+        userId: user.id,
       },
     });
 
-    // Atomically update account balance
     await tx.account.update({
       where: { id: account.id },
       data: {
@@ -98,8 +115,12 @@ export async function createTransaction(data: CreateTransactionInput) {
   revalidatePath("/dashboard");
   revalidatePath(`/account/${transaction.accountId}`);
 
-  return { success: true, data: serializeAmount(transaction) };
+  return {
+    success: true,
+    data: serializeAmount(transaction),
+  };
 }
+
 
 /* -------------------------------------------------------------------------- */
 /*                               Get Transaction                               */
