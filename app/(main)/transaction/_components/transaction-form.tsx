@@ -89,7 +89,10 @@ export function AddTransactionForm({
             type: "EXPENSE",
             amount: "",
             description: "",
-            accountId: accounts.find((a) => a.isDefault)?.id,
+            accountId:
+              accounts.find((a) => a.isDefault)?.id ??
+              accounts[0]?.id,
+            category: categories[0]?.id,
             date: new Date(),
             isRecurring: false,
             recurringInterval: "MONTHLY",
@@ -124,7 +127,8 @@ export function AddTransactionForm({
 
   const mapAiCategoryToId = (aiCategory?: string) =>
     categories.find(
-      (c) => c.name.toLowerCase() === aiCategory?.toLowerCase()
+      (c) =>
+        c.name.toLowerCase() === aiCategory?.toLowerCase()
     )?.id;
 
   const filteredCategories = categories.filter(
@@ -135,40 +139,44 @@ export function AddTransactionForm({
   /* Submit                                                                     */
   /* -------------------------------------------------------------------------- */
 
-  const onSubmit = handleSubmit((data) => {
-    const payload = {
-      ...data,
-      amount: parseFloat(data.amount),
-      recurringInterval: data.isRecurring
-        ? data.recurringInterval
-        : undefined,
-    };
+  const onSubmit = handleSubmit(
+    (data) => {
+      const payload = {
+        ...data,
+        amount: parseFloat(data.amount),
+        recurringInterval: data.isRecurring
+          ? data.recurringInterval
+          : undefined,
+      };
 
-    if (editMode && editId) {
-      transactionFn(editId, payload);
-    } else {
-      transactionFn(payload);
+      console.log("Submitting payload:", payload);
+
+      if (editMode && editId) {
+        transactionFn(editId, payload);
+      } else {
+        transactionFn(payload);
+      }
+    },
+    (errors) => {
+      console.error("Form errors:", errors);
+      toast.error("Please fix the form errors");
     }
-  });
+  );
 
-  /* -------------------------------------------------------------------------- */
-  /* Receipt Scan Handler                                                       */
   /* -------------------------------------------------------------------------- */
 
   const handleScanComplete = useCallback(
     (scanned: any) => {
       if (!scanned) return;
 
-      if (typeof scanned.amount === "number" && scanned.amount > 0) {
-        setValue("amount", scanned.amount.toString(), {
-          shouldDirty: true,
-          shouldValidate: true,
-        });
+      if (typeof scanned.amount === "number") {
+        setValue("amount", scanned.amount.toString());
       }
 
       if (scanned.date) {
         const d = new Date(scanned.date);
-        if (!isNaN(d.getTime())) setValue("date", d);
+        if (!isNaN(d.getTime()))
+          setValue("date", d);
       }
 
       if (scanned.description) {
@@ -182,8 +190,6 @@ export function AddTransactionForm({
   );
 
   /* -------------------------------------------------------------------------- */
-  /* Success Handler                                                            */
-  /* -------------------------------------------------------------------------- */
 
   useEffect(() => {
     if (transactionResult?.success && transactionResult.data) {
@@ -192,7 +198,9 @@ export function AddTransactionForm({
           ? "Transaction updated"
           : "Transaction created"
       );
+
       reset();
+
       router.push(
         `/account/${transactionResult.data.accountId}`
       );
@@ -200,13 +208,16 @@ export function AddTransactionForm({
   }, [transactionResult, editMode, reset, router]);
 
   /* -------------------------------------------------------------------------- */
-  /* UI                                                                         */
-  /* -------------------------------------------------------------------------- */
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
+    <form
+      onSubmit={onSubmit}
+      className="space-y-6"
+    >
       {!editMode && (
-        <ReceiptScanner onScanComplete={handleScanComplete} />
+        <ReceiptScanner
+          onScanComplete={handleScanComplete}
+        />
       )}
 
       {/* TYPE */}
@@ -221,8 +232,19 @@ export function AddTransactionForm({
               field.onChange(Array.from(k)[0])
             }
           >
-            <SelectItem key="EXPENSE">Expense</SelectItem>
-            <SelectItem key="INCOME">Income</SelectItem>
+            <SelectItem
+              key="EXPENSE"
+              textValue="Expense"
+            >
+              Expense
+            </SelectItem>
+
+            <SelectItem
+              key="INCOME"
+              textValue="Income"
+            >
+              Income
+            </SelectItem>
           </Select>
         )}
       />
@@ -243,7 +265,9 @@ export function AddTransactionForm({
               onChange={(e) =>
                 field.onChange(e.target.value)
               }
-              errorMessage={errors.amount?.message}
+              errorMessage={
+                errors.amount?.message
+              }
             />
           )}
         />
@@ -260,7 +284,10 @@ export function AddTransactionForm({
               }
             >
               {accounts.map((a) => (
-                <SelectItem key={a.id}>
+                <SelectItem
+                  key={a.id}
+                  textValue={a.name}
+                >
                   {a.name} (₹
                   {Number(a.balance).toFixed(2)})
                 </SelectItem>
@@ -278,14 +305,19 @@ export function AddTransactionForm({
           <Select
             label="Category"
             selectedKeys={
-              field.value ? [field.value] : []
+              field.value
+                ? [field.value]
+                : []
             }
             onSelectionChange={(k) =>
               field.onChange(Array.from(k)[0])
             }
           >
             {filteredCategories.map((c) => (
-              <SelectItem key={c.id}>
+              <SelectItem
+                key={c.id}
+                textValue={c.name}
+              >
                 {c.name}
               </SelectItem>
             ))}
@@ -303,6 +335,7 @@ export function AddTransactionForm({
             {date
               ? format(date, "PPP")
               : "Pick a date"}
+
             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -312,7 +345,8 @@ export function AddTransactionForm({
             mode="single"
             selected={date}
             onSelect={(d) =>
-              d && setValue("date", d)
+              d &&
+              setValue("date", d)
             }
           />
         </PopoverContent>
@@ -326,19 +360,18 @@ export function AddTransactionForm({
           <Input
             {...field}
             label="Description"
-            placeholder="Enter description"
           />
         )}
       />
 
       {/* RECURRING SWITCH */}
-      <div className="flex items-center justify-between rounded-lg border p-4">
+      <div className="flex items-center justify-between border rounded-lg p-4">
         <div>
           <p className="font-medium">
             Recurring Transaction
           </p>
           <p className="text-sm text-muted-foreground">
-            Set up a recurring schedule
+            Enable recurring payments
           </p>
         </div>
 
@@ -348,7 +381,9 @@ export function AddTransactionForm({
           render={({ field }) => (
             <Switch
               isSelected={field.value}
-              onValueChange={field.onChange}
+              onValueChange={
+                field.onChange
+              }
             />
           )}
         />
@@ -363,21 +398,34 @@ export function AddTransactionForm({
             <Select
               label="Recurring Interval"
               selectedKeys={
-                field.value ? [field.value] : []
+                field.value
+                  ? [field.value]
+                  : []
               }
-              onSelectionChange={(keys) =>
+              onSelectionChange={(k) =>
                 field.onChange(
-                  Array.from(keys)[0]
+                  Array.from(k)[0]
                 )
               }
             >
-              <SelectItem key="DAILY">
+              <SelectItem
+                key="DAILY"
+                textValue="Daily"
+              >
                 Daily
               </SelectItem>
-              <SelectItem key="WEEKLY">
+
+              <SelectItem
+                key="WEEKLY"
+                textValue="Weekly"
+              >
                 Weekly
               </SelectItem>
-              <SelectItem key="MONTHLY">
+
+              <SelectItem
+                key="MONTHLY"
+                textValue="Monthly"
+              >
                 Monthly
               </SelectItem>
             </Select>
@@ -389,7 +437,9 @@ export function AddTransactionForm({
       <div className="flex gap-4">
         <Button
           variant="bordered"
-          onPress={() => router.back()}
+          onPress={() =>
+            router.back()
+          }
         >
           Cancel
         </Button>
@@ -397,12 +447,14 @@ export function AddTransactionForm({
         <Button
           color="primary"
           type="submit"
-          isDisabled={transactionLoading}
+          isDisabled={
+            transactionLoading
+          }
         >
           {transactionLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving…
+              Saving...
             </>
           ) : (
             "Create Transaction"
