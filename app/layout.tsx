@@ -5,6 +5,7 @@ import { fontSans } from "@/config/fonts";
 import clsx from "clsx";
 import { ClientLayout } from "./client-layout";
 import { checkUser } from "@/lib/checkUser";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: {
@@ -42,6 +43,7 @@ export default async function RootLayout({
         )}
       >
         <ClientLayout>{children}</ClientLayout>
+        <Analytics />
       </body>
     </html>
   );
